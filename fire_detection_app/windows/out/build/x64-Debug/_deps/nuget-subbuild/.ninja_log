@@ -1,0 +1,13 @@
+# ninja log v5
+1	283	7157682898499557	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-mkdir	85f5855ffc735e33
+284	26694	7157683162601457	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-download	4757cd260f2f6a54
+26695	26777	7157683163428873	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-update	974876488141761c
+26777	26862	7157683164284474	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-patch	492097c44dee2abf
+26862	26984	7157683165505117	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-copyfile	d7be8269db5192cf
+26862	26984	7157683165505117	C:/Users/Shegin/Desktop/fire/fire_detection_app/windows/out/build/x64-Debug/_deps/nuget-src/nuget.exe	d7be8269db5192cf
+26985	27070	7157683166358912	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-configure	f25e38f67381b4ac
+27070	27163	7157683167279351	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-build	2bef9df4fb2579f9
+27164	27266	7157683168323225	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-install	1a616a281c8b604
+27267	27376	7157683169402240	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-test	f5a8fe9f700c0a12
+27376	27508	7157683170730423	CMakeFiles/nuget-populate-complete	1036b93a6de090ca
+27376	27508	7157683170730423	nuget-populate-prefix/src/nuget-populate-stamp/nuget-populate-done	1036b93a6de090ca

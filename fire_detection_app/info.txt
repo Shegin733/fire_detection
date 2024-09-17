@@ -1,0 +1,2126 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+void main() {
+  runApp(FireDetectionApp());
+}
+
+class FireDetectionApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Fire Detection App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: FireDetectionScreen(),
+    );
+  }
+}
+
+class FireDetectionScreen extends StatefulWidget {
+  @override
+  _FireDetectionScreenState createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  String Temperature = '';
+  String Smoke = '';
+  Timer? timer;
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse('https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          Temperature = json['feeds'][0]['field1'].toString();
+          Smoke = json['feeds'][0]['field2'].toString();
+        });
+      } else {
+        setState(() {
+          Temperature = 'No data available';
+          Smoke = 'No data available';
+        });
+      }} else {
+      setState(() {
+        Temperature = 'Error';
+        Smoke = 'Error';
+      });
+    }
+  }
+
+
+  Future<void> startFireDetection() async {
+    final response = await http.post(Uri.parse('http://127.0.0.1:5000/start_fire_detection'));
+    if (response.statusCode == 200) {
+      print('Fire detection started');
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  Future<void> stopFireDetection() async {
+    final response = await http.post(Uri.parse('http://127.0.0.1:5000/stop_fire_detection'));
+    if (response.statusCode == 200) {
+      print('Fire detection stopped');
+    } else {
+      print('Failed to start fire detection. Status code: ${response.statusCode}');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Fire Detection App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Temperature: $Temperature'),
+            SizedBox(height: 16.0),
+            Text('Smoke: $Smoke'),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: startFireDetection,
+              child: Text('Start Fire Detection'),
+            ),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: stopFireDetection,
+              child: Text('Stop Fire Detection'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+---------------------------------
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+  late VideoPlayerController _controller;
+  ChewieController? _chewieController;
+  String liveStreamURL = ''; // Variable to store the live stream URL
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+    _controller = VideoPlayerController.network(
+        ''); // Initializing the controller with an empty URL
+    _initializeVideoPlayer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    _controller.dispose();
+    _chewieController?.dispose();
+    super.dispose();
+  }
+
+  void _initializeVideoPlayer() async {
+    await _controller.initialize();
+    setState(() {
+      _chewieController = ChewieController(
+        videoPlayerController: _controller,
+        autoPlay: true,
+        looping: true,
+      );
+    });
+  }
+
+  // Rest of the code...
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+
+  Future<void> startFireDetection() async {
+    final response = await http.post(Uri.parse('http://127.0.0.1:5000/start_fire_detection'));
+    if (response.statusCode == 200) {
+      // Assuming the Python file returns the live stream URL in the response
+      setState(() {
+        liveStreamURL = response.body;
+      });
+      _controller = VideoPlayerController.network(liveStreamURL);
+      _initializeVideoPlayer();
+      _chewieController!.play();
+      print('Fire detection started');
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  // Rest of the code...
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Fire Detection App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_chewieController != null &&
+                _chewieController!.videoPlayerController.value.isInitialized)
+              Chewie(
+                controller: _chewieController!,
+              ),
+            SizedBox(height: 16.0),
+            Text('Temperature: $temperature'),
+            SizedBox(height: 16.0),
+            Text('Smoke: $smoke'),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: startFireDetection,
+              child: Text('Start Fire Detection'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+----------------------------------
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+import 'package:video_player/video_player.dart';
+
+void main() {
+  runApp(FireDetectionApp());
+}
+
+class FireDetectionApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Fire Detection App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: FireDetectionScreen(),
+    );
+  }
+}
+
+class FireDetectionScreen extends StatefulWidget {
+  @override
+  _FireDetectionScreenState createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+  VideoPlayerController? _controller;
+  String liveStreamURL = '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse('https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+
+  Future<void> startFireDetection() async {
+    final response = await http.post(Uri.parse('http://127.0.0.1:5000/start_fire_detection'));
+    if (response.statusCode == 200) {
+      // Assuming the Python file returns the live stream URL in the response
+      setState(() {
+        liveStreamURL = response.body;
+      });
+      _controller = VideoPlayerController.network(liveStreamURL);
+      await _controller!.initialize();
+      _controller!.play();
+      print('Fire detection started');
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Fire Detection App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (liveStreamURL.isNotEmpty && _controller != null)
+              AspectRatio(
+                aspectRatio: _controller!.value.aspectRatio,
+                child: VideoPlayer(_controller!),
+              ),
+            SizedBox(height: 16.0),
+            Text('Temperature: $temperature'),
+            SizedBox(height: 16.0),
+            Text('Smoke: $smoke'),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: startFireDetection,
+              child: Text('Start Fire Detection'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+-------------------------
+  implementation 'com.google.android.exoplayer:exoplayer-core:2.18.7'
+    implementation 'com.google.android.exoplayer:exoplayer-ui:2.18.7'
+
+    -------------------
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+import 'package:flutter_webview_plugin/flutter_webview_plugin.dart';
+
+void main() {
+  runApp(FireDetectionApp());
+}
+
+class FireDetectionApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Fire Detection App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: FireDetectionScreen(),
+    );
+  }
+}
+
+class FireDetectionScreen extends StatefulWidget {
+  @override
+  _FireDetectionScreenState createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+
+  Future<void> startFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:5000/start_fire_detection'));
+    if (response.statusCode == 200) {
+      final liveStreamURL = response.body;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => WebViewPage(url: liveStreamURL)),
+      );
+      print('Fire detection started');
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Fire Detection App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Temperature: $temperature'),
+            SizedBox(height: 16.0),
+            Text('Smoke: $smoke'),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: startFireDetection,
+              child: Text('Start Fire Detection'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class WebViewPage extends StatelessWidget {
+  final String url;
+
+  WebViewPage({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return WebviewScaffold(
+      url: url,
+      appBar: AppBar(
+        title: Text('Live Stream'),
+      ),
+      withZoom: true,
+      withJavascript: true,
+    );
+  }
+}
+ import 'package:flutter/material.dart';
+ import 'package:http/http.dart' as http;
+ import 'dart:convert';
+ import 'dart:async';
+ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+ import 'package:flutter/foundation.dart' show kIsWeb;
+
+ void main() {
+   runApp(FireDetectionApp());
+ }
+
+ class FireDetectionApp extends StatelessWidget {
+   @override
+   Widget build(BuildContext context) {
+     return MaterialApp(
+       title: 'Fire Detection App',
+       theme: ThemeData(
+         primarySwatch: Colors.blue,
+       ),
+       home: FireDetectionScreen(),
+     );
+   }
+ }
+
+ class FireDetectionScreen extends StatefulWidget {
+   @override
+   _FireDetectionScreenState createState() => _FireDetectionScreenState();
+ }
+
+ class _FireDetectionScreenState extends State<FireDetectionScreen> {
+   String temperature = '';
+   String smoke = '';
+   Timer? timer;
+   bool showWebView = false;
+   late String liveStreamURL;
+   InAppWebViewController? _webViewController;
+
+   @override
+   void initState() {
+     super.initState();
+     fetchData();
+     startDataUpdateTimer();
+   }
+
+   @override
+   void dispose() {
+     timer?.cancel();
+     super.dispose();
+   }
+
+   void startDataUpdateTimer() {
+     const updateInterval = Duration(milliseconds: 500);
+     timer = Timer.periodic(updateInterval, (_) {
+       fetchData();
+     });
+   }
+
+   Future<void> fetchData() async {
+     final response = await http.get(
+       Uri.parse('https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+     );
+
+     if (response.statusCode == 200) {
+       final json = jsonDecode(response.body);
+       if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+         setState(() {
+           temperature = json['feeds'][0]['field1'].toString();
+           smoke = json['feeds'][0]['field2'].toString();
+         });
+       } else {
+         setState(() {
+           temperature = 'No data available';
+           smoke = 'No data available';
+         });
+       }
+     } else {
+       setState(() {
+         temperature = 'Error';
+         smoke = 'Error';
+       });
+     }
+   }
+
+   Future<void> startFireDetection() async {
+     final response = await http.post(Uri.parse('http://192.168.43.158:5000/start_fire_detection'));
+     if (response.statusCode == 200) {
+       setState(() {
+         showWebView = true;
+         liveStreamURL = response.body;
+       });
+       print('Fire detection started');
+     } else {
+       print('Failed to start fire detection');
+     }
+   }
+
+   Future<void> stopFireDetection() async {
+     final response = await http.post(Uri.parse('http://127.0.0.1:5000/stop_fire_detection'));
+     if (response.statusCode == 200) {
+       setState(() {
+         showWebView = false;
+       });
+       print('Fire detection stopped');
+     } else {
+       print('Failed to stop fire detection. Status code: ${response.statusCode}');
+     }
+   }
+
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+       appBar: AppBar(
+         title: Text('Fire Detection App'),
+       ),
+       body: Center(
+         child: Column(
+           mainAxisAlignment: MainAxisAlignment.center,
+           children: [
+             Text('Temperature: $temperature'),
+             SizedBox(height: 16.0),
+             Text('Smoke: $smoke'),
+             SizedBox(height: 16.0),
+             ElevatedButton(
+               onPressed: startFireDetection,
+               child: Text('Start Fire Detection'),
+             ),
+             SizedBox(height: 16.0),
+             ElevatedButton(
+               onPressed: stopFireDetection,
+               child: Text('Stop Fire Detection'),
+             ),
+             if (kIsWeb && showWebView)
+               Expanded(
+                 child: InAppWebView(
+                   initialUrlRequest: URLRequest(url: Uri.parse(liveStreamURL)),
+                   onWebViewCreated: (controller) {
+                     _webViewController = controller;
+                   },
+                 ),
+               ),
+           ],
+         ),
+       ),
+     );
+ }
+-------------------------------
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_mjpeg/flutter_mjpeg.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:audioplayers/audioplayers.dart';
+
+
+import 'package:flutter_hooks/flutter_hooks.dart';
+
+void main() {
+  runApp(FireDetectionApp());
+}
+
+
+
+class FireDetectionApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Fire Detection App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => LoginPage(),
+        '/home': (context) => HomePage(),
+        '/fire-detection': (context) => FireDetectionScreen(),
+      },
+    );
+  }
+}
+class LoginPage extends StatelessWidget {
+  static const IconData query_stats_sharp = IconData(0xebef, fontFamily: 'MaterialIcons');
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            // image: Image.asset("assets/images/blue-fire-pyrotechnics.gif"),
+            image: AssetImage('assets/images/blue-fire-pyrotechnics.gif'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Center(
+          child: Column(
+
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Login Page',
+                style: TextStyle(
+                  fontSize: 30,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 10,
+                      color: Colors.white,
+                    ),
+                    Shadow(
+                      blurRadius: 20,
+                      color: Colors.cyanAccent,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                width: 382,
+                margin: EdgeInsets.only(top: 20),
+                padding: EdgeInsets.all(80),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'User Name',
+                        labelStyle: TextStyle(
+                          color: Color(0xFF08FFD1),
+                          fontSize: 17,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(3),
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(3),
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        labelStyle: TextStyle(
+                          color: Color(0xFF08FFD1),
+                          fontSize: 17,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(3),
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(3),
+                          borderSide: BorderSide(color: Colors.black),
+                        ),
+                      ),
+                      obscureText: true,
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/home');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        primary: Colors.blue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(17),
+                        ),
+                        minimumSize: Size(300, 30),
+                      ),
+                      child: Text(
+                        'Log In',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Colors.cyanAccent,
+                        fontSize: 17,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+
+
+
+class HomePage extends StatelessWidget {
+  static const IconData query_stats_sharp = IconData(0xebef, fontFamily: 'MaterialIcons');
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bandarai-art-ebguwbewsaahd1f.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Center(
+          child: Container(
+            width: 500,
+            height: 100,
+            padding: EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Color.fromRGBO(255, 255, 255, 0.4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ],
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/location');
+                      },
+                      child: Container(
+                        margin: EdgeInsets.only(bottom: 8.0),
+                        child: Image.asset(
+                          'assets/images/location.png',
+                          height: 35,
+                          width: 100,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/location');
+                      },
+                      child: Text(
+                        'Location',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/fire-detection');
+                      },
+                        child: Container(
+                          margin: EdgeInsets.only(bottom: 8.0),
+                          child: Image.asset(
+                            'assets/images/analysis.png',
+                            height: 35,
+                            width: 100,
+                          ),
+                        ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/fire-detection');
+                      },
+                      child: Text(
+                        'Statistics',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/log');
+                      },
+                      child: Container(
+                        margin: EdgeInsets.only(bottom: 8.0),
+                        child: Image.asset(
+                          'assets/images/log.png',
+                          height: 35,
+                          width: 100,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, '/log');
+                      },
+                      child: Text(
+                        'Log',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class FireDetectionScreen extends StatefulWidget {
+  @override
+  _FireDetectionScreenState createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+  bool showWebView = false;
+  late String liveStreamURL;
+  InAppWebViewController? _webViewController;
+  late AudioPlayer audioPlayer;
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse('https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+        final smokeValue = double.tryParse(smoke);
+        if (smokeValue != null && smokeValue > 500.0) {
+          showAlertMessage('Smoke Detected');
+          playAlarmSound();
+        }
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+  void showAlertMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Alert'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+  void playAlarmSound() async {
+    await audioPlayer.play('assets/alarm.wav' as Source,);
+  }
+
+  Future<void> startFireDetection() async {
+    final response = await http.post(Uri.parse('http://192.168.43.158:5000/start_fire_detection'));
+
+    if (response.statusCode == 200) {
+      final jsonResponse = json.decode(response.body);
+      final message = jsonResponse['message'];
+      final liveStreamURL = jsonResponse['liveStreamURL'];
+
+      setState(() {
+        showWebView = true;
+        this.liveStreamURL = liveStreamURL;
+      });
+
+      print('Fire detection started');
+      print('Message: $message');
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+
+
+
+
+
+
+  Future<void> stopFireDetection() async {
+    final response = await http.post(Uri.parse('http://192.168.43.158:5000/stop_fire_detection'));
+    if (response.statusCode == 200) {
+      final liveStreamURL = response.body;
+      setState(() {
+        showWebView = false;
+        this.liveStreamURL = liveStreamURL;
+      });
+      print('Fire detection started');
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Fire Detection App'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+
+            Text('Temperature: $temperature'),
+            SizedBox(height: 16.0),
+            Text('Smoke: $smoke'),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: startFireDetection,
+              child: Text('Start Fire Detection'),
+            ),
+            SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: stopFireDetection,
+              child: Text('Stop Fire Detection'),
+            ),
+            if (showWebView)
+              Expanded(
+                child: Stack(
+                  children: [
+                    Column(
+                      children: [
+                        SizedBox(height: 16.0), // Add spacing
+                        Text('Live Stream', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    Container(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.height * 0.4,
+                      // Adjust the height as per your requirement
+    child: Mjpeg(
+    stream:
+    'http://10.21.28.188:8080/video'
+    ),
+                      // child: InAppWebView(
+                      //   initialUrlRequest: URLRequest(url: Uri.parse(liveStreamURL)),
+                      //   onWebViewCreated: (controller) {
+                      //     _webViewController = controller;
+                      //   },
+
+                      // ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+------------------------------------------------------------------------------
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+class FireDetectionScreen extends StatefulWidget {
+  const FireDetectionScreen({Key? key}) : super(key: key);
+
+  @override
+  _FireDetectionScreenState createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  bool startDetection = false;
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+  late WebSocketChannel channel;
+  GlobalKey<LogFilePageState> logFilePageKey = GlobalKey<LogFilePageState>();
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    channel.sink.close();
+    super.dispose();
+  }
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+        final smokeValue = double.tryParse(smoke);
+        if (smokeValue != null && smokeValue > 100.0) {
+          showAlertMessage('Smoke Detected');
+        }
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+
+  void showAlertMessage(String message) async {
+    final detStatus = 'Fire Detected';
+    final showAlertMessage = true;
+
+    if (detStatus == "Fire Detected" && showAlertMessage) {
+      setState(() {
+        smoke = 'Smoke Detected: $smoke';
+      });
+
+      // Send a message to the ESP32
+      final socket = await Socket.connect('http://192.168.1.100', 1234);
+      socket.write('Fire Detected: $message');
+      await socket.flush();
+      await socket.close();
+    }
+  }
+
+  Future<void> startFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/start_detection'));
+
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = true;
+      });
+      print('Fire detection started');
+      channel = WebSocketChannel.connect(Uri.parse('ws://localhost:8000/'));
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  Future<void> stopFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/stop_detection'));
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = false;
+      });
+      channel.sink.close();
+      print('Fire detection stopped');
+    } else {
+      print('Failed to stop fire detection');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fire Detection App'),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/Statistics.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Temperature: $temperature',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+              const SizedBox(height: 16.0),
+              Text(
+                'Smoke: $smoke',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+              const SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: startFireDetection,
+                child: const Text('Start Fire Detection'),
+              ),
+              const SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: stopFireDetection,
+                child: const Text('Stop Fire Detection'),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: StreamBuilder(
+                    stream: channel.stream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        final jsonRes = jsonDecode(snapshot.data.toString());
+                        final response = jsonRes["response"];
+                        final frame = base64Decode(jsonRes['frame']);
+                        String detStatus = response["detection"] as bool
+                            ? "Fire Detected"
+                            : "No Fire Detected";
+                        String detDesc = response["desc"];
+                        DateTime detTimestamp =
+                        DateTime.parse(response["timestamp"]);
+
+                        if (detStatus == 'Fire Detected') {
+                          logFilePageKey.currentState?.addLogEntry(
+                            status: detStatus,
+                            description: detDesc,
+                            timestamp: detTimestamp,
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            Text(
+                              "Status: $detStatus",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 24,
+                              ),
+                            ),
+                            Text(
+                              "Description: $detDesc",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 24,
+                              ),
+                            ),
+                            Text(
+                              "Timestamp: $detTimestamp",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 24,
+                              ),
+                            ),
+                            Image.memory(frame),
+                          ],
+                        );
+                      } else {
+                        return const Text(
+                          "No detection response received from server",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 24,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class LogFilePage extends StatefulWidget {
+  const LogFilePage({Key? key}) : super(key: key);
+
+  @override
+  LogFilePageState createState() => LogFilePageState();
+}
+
+class LogFilePageState extends State<LogFilePage> {
+  List<LogEntry> logEntries = [];
+
+  void addLogEntry(
+      {required String status,
+        required String description,
+        required DateTime timestamp}) {
+    setState(() {
+      logEntries.add(LogEntry(
+          status: status, description: description, timestamp: timestamp));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: logEntries.length,
+      itemBuilder: (context, index) {
+        final logEntry = logEntries[index];
+        return ListTile(
+          title: Text(logEntry.status),
+          subtitle: Text(logEntry.description),
+          trailing: Text(logEntry.timestamp.toString()),
+        );
+      },
+    );
+  }
+}
+
+class LogEntry {
+  final String status;
+  final String description;
+  final DateTime timestamp;
+
+  LogEntry(
+      {required this.status,
+        required this.description,
+        required this.timestamp});
+}
+
+void main() {
+  runApp(MaterialApp(
+    home: Scaffold(
+      body: FireDetectionScreen(),
+    ),
+  ));
+}
+-------------------------------------
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
+
+import 'package:assets_audio_player/assets_audio_player.dart';
+
+class FireDetectionScreen extends StatefulWidget {
+  const FireDetectionScreen({Key? key}) : super(key: key);
+
+  @override
+  State<FireDetectionScreen> createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  bool startDetection = false;
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+  late AudioPlayer audioPlayer;
+  WebSocketChannel? channel;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+        final smokeValue = double.tryParse(smoke);
+        if (smokeValue != null && smokeValue > 100.0) {
+          showAlertMessage('Smoke Detected');
+          playAlarmSound();
+        }
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+
+  void showAlertMessage(String message) async {
+    final detStatus = 'Fire Detected';
+    final showAlertMessage = true;
+
+    if (detStatus == "Fire Detected" && showAlertMessage) {
+      setState(() {
+        smoke = 'Smoke Detected: $smoke';
+      });
+
+      // Send a message to the ESP32
+
+    }
+  }
+
+  void playAlarmSound() async {
+    final player = AudioPlayer();
+
+    await player.play(AssetSource('alarm.wav'));
+  }
+
+  Future<void> startFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/start_detection'));
+
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = true;
+      });
+      print('Fire detection started');
+      channel = WebSocketChannel.connect(Uri.parse('ws://localhost:8000/'));
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  Future<void> stopFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/stop_detection'));
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = false;
+      });
+      channel?.sink.close();
+      print('Fire detection stopped');
+    } else {
+      print('Failed to stop fire detection');
+    }
+  }
+  @override
+  void dispose() {
+    timer?.cancel();
+    channel?.sink.close();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fire Detection App'),
+      ),
+      body: Center(
+
+
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+
+          children: [
+
+            Text('Temperature: $temperature'),
+            const SizedBox(height: 16.0),
+            Text('Smoke: $smoke'),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: startFireDetection,
+              child: const Text('Start Fire Detection'),
+            ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: stopFireDetection,
+              child: const Text('Stop Fire Detection'),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: StreamBuilder(
+                  stream: channel?.stream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      final jsonRes = jsonDecode(snapshot.data.toString());
+                      final response = jsonRes["response"];
+                      final frame = base64Decode(jsonRes['frame']);
+                      String detStatus = response["detection"] as bool
+                          ? "Fire Detected"
+                          : "No Fire Detected";
+                      String detDesc = response["desc"];
+                      DateTime detTimestamp =
+                      DateTime.parse(response["timestamp"]);
+                      return Column(
+                        children: [
+                          Text("Status : $detStatus"),
+                          Text("Desc : $detDesc"),
+                          Text("TimeStamp : $detTimestamp"),
+                          Image.memory(frame),
+                        ],
+                      );
+                    } else {
+                      return const Text(
+                        "No detection response received from server",
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+}
+-------------------------------------
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Log File Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: LogFilePage(),
+    );
+  }
+}
+
+class LogFilePage extends StatefulWidget {
+  const LogFilePage({Key? key}) : super(key: key);
+
+  @override
+  _LogFilePageState createState() => _LogFilePageState();
+}
+
+class _LogFilePageState extends State<LogFilePage> {
+  List<String> logEntries = [
+    'Temperature',
+    'Smoke',
+    'Location',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Log File'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context); // Navigate back to the previous screen
+          },
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/Log File (3).png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Row(
+          children: List.generate(logEntries.length, (index) {
+            return Container(
+              margin: EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  Text(logEntries[index],
+                      style: TextStyle(
+                          fontSize: 25, color: Colors.white,)),
+                  SizedBox(height: 8),
+                  Image.asset(
+                    _getImagePath(index),
+                    width: 400,
+                    height: 400,
+                  ),
+                ],
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  String _getImagePath(int index) {
+    // Add logic to return the correct image path based on the index
+    if (index == 0) {
+      return 'assets/images/temp.png';
+    } else if (index == 1) {
+      return 'assets/images/lie.png';
+    } else if (index == 2) {
+      return 'assets/images/die.png';
+    }
+    return ''; // Return a default image path or handle other cases
+  }
+
+
+-------------------------------------------------------------
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
+
+import 'package:assets_audio_player/assets_audio_player.dart';
+
+class FireDetectionScreen extends StatefulWidget {
+  const FireDetectionScreen({Key? key}) : super(key: key);
+
+  @override
+  State<FireDetectionScreen> createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  bool startDetection = false;
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+  late AudioPlayer audioPlayer;
+  WebSocketChannel? channel;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+        final smokeValue = double.tryParse(smoke);
+        if (smokeValue != null && smokeValue > 100.0) {
+          showAlertMessage('Smoke Detected');
+          playAlarmSound();
+        }
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+
+  void showAlertMessage(String message) async {
+
+      setState(() {
+        smoke = 'Smoke Detected: $smoke';
+      });
+
+      // Send a message to the ESP32
+
+
+  }
+
+  void playAlarmSound() async {
+    final player = AudioPlayer();
+
+    await player.play(AssetSource('alarm.wav'));
+  }
+
+  Future<void> startFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/start_detection'));
+
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = true;
+      });
+      print('Fire detection started');
+      channel = WebSocketChannel.connect(Uri.parse('ws://localhost:8000/'));
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  Future<void> stopFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/stop_detection'));
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = false;
+      });
+      channel?.sink.close();
+      print('Fire detection stopped');
+    } else {
+      print('Failed to stop fire detection');
+    }
+  }
+  @override
+  void dispose() {
+    timer?.cancel();
+    channel?.sink.close();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fire Detection App'),
+      ),
+      body: Center(
+
+
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+
+          children: [
+
+            Text(' Current Temperature: $temperature'),
+            const SizedBox(height: 16.0),
+            Text(' Current Smoke: $smoke'),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: startFireDetection,
+              child: const Text('View IP Livestream '),
+            ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: stopFireDetection,
+              child: const Text('Pause Livestream'),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: StreamBuilder(
+                  stream: channel?.stream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      final jsonRes = jsonDecode(snapshot.data.toString());
+                      final response = jsonRes["response"];
+                      final frame = base64Decode(jsonRes['frame']);
+                      bool detStatus = response["detection"] as bool;
+                      String statusText = detStatus ? "Fire Detected" : "No Fire Detected";
+                      String detDesc = response["desc"];
+                      DateTime detTimestamp = DateTime.parse(response["timestamp"]);
+
+                      if (detStatus) {
+                        playAlarmSound();
+                      }
+
+
+
+                      return Column(
+                        children: [
+                          Text("Status : $statusText"),
+                          Text("Desc : $detDesc"),
+                          Text("TimeStamp : $detTimestamp"),
+                          Image.memory(frame),
+                        ],
+                      );
+                    } else {
+                      return const Text(
+                        "No detection response received from server",
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+}
+
+------------------------
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
+
+import 'package:assets_audio_player/assets_audio_player.dart';
+
+class FireDetectionScreen extends StatefulWidget {
+  const FireDetectionScreen({Key? key}) : super(key: key);
+
+  @override
+  State<FireDetectionScreen> createState() => _FireDetectionScreenState();
+}
+
+class _FireDetectionScreenState extends State<FireDetectionScreen> {
+  bool startDetection = false;
+  String temperature = '';
+  String smoke = '';
+  Timer? timer;
+  late AudioPlayer audioPlayer;
+  WebSocketChannel? channel;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+    startDataUpdateTimer();
+  }
+
+  void startDataUpdateTimer() {
+    const updateInterval = Duration(milliseconds: 500);
+    timer = Timer.periodic(updateInterval, (_) {
+      fetchData();
+    });
+  }
+
+  Future<void> fetchData() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://api.thingspeak.com/channels/2145528/feeds.json?api_key=SSDJ3RBYOYCSFSFK&results=1'),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      if (json['feeds'] != null && json['feeds'].isNotEmpty) {
+        setState(() {
+          temperature = json['feeds'][0]['field1'].toString();
+          smoke = json['feeds'][0]['field2'].toString();
+        });
+        final smokeValue = double.tryParse(smoke);
+        if (smokeValue != null && smokeValue > 100.0) {
+          showAlertMessage('Smoke Detected');
+          playAlarmSound();
+        }
+      } else {
+        setState(() {
+          temperature = 'No data available';
+          smoke = 'No data available';
+        });
+      }
+    } else {
+      setState(() {
+        temperature = 'Error';
+        smoke = 'Error';
+      });
+    }
+  }
+
+  void showAlertMessage(String message) async {
+    setState(() {
+      smoke = 'Smoke Detected: $smoke';
+    });
+
+    // Send a message to the ESP32
+  }
+
+  void playAlarmSound() async {
+    final player = AudioPlayer();
+    await player.play(AssetSource('alarm.wav'));
+  }
+
+  Future<void> startFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/start_detection'));
+
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = true;
+      });
+      print('Fire detection started');
+      channel = WebSocketChannel.connect(Uri.parse('ws://localhost:8000/'));
+    } else {
+      print('Failed to start fire detection');
+    }
+  }
+
+  Future<void> stopFireDetection() async {
+    final response =
+    await http.post(Uri.parse('http://localhost:8000/stop_detection'));
+    if (response.statusCode == 200) {
+      setState(() {
+        startDetection = false;
+      });
+      channel?.sink.close();
+      print('Fire detection stopped');
+    } else {
+      print('Failed to stop fire detection');
+    }
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    channel?.sink.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fire Detection App'),
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sensor Detector Statistics',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Current Temperature: $temperature',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Current Smoke: $smoke',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 50,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: startFireDetection,
+                  child: const Text('View IP Livestream'),
+                ),
+                ElevatedButton(
+                  onPressed: stopFireDetection,
+                  child: const Text('Pause Livestream'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: StreamBuilder(
+                stream: channel?.stream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      final jsonRes = jsonDecode(snapshot.data.toString());
+                      final response = jsonRes["response"];
+                      final frame = base64Decode(jsonRes['frame']);
+                      bool detStatus = response["detection"] as bool;
+                      String statusText = detStatus ? "Fire Detected" : "No Fire Detected";
+                      String detDesc = response["desc"];
+                      DateTime detTimestamp = DateTime.parse(response["timestamp"]);
+
+                      if (detStatus) {
+                        playAlarmSound();
+                      }
+
+
+
+                      return Column(
+                        children: [
+                          Text("Status : $statusText"),
+                          Text("Desc : $detDesc"),
+                          Text("TimeStamp : $detTimestamp"),
+                          Image.memory(frame),
+                        ],
+                      );
+                    } else {
+                      return const Text(
+                        "No detection response received from server",
+                      );
+                    }
+                  }
+
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

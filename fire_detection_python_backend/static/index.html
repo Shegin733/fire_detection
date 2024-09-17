@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Fire Detection</title>
+    <style>
+        #response-container {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        #image-container {
+            margin-top: 20px;
+            max-width: 100%;
+        }
+
+        .fire-detected {
+            color: red;
+            font-weight: bold;
+        }
+
+        .no-fire-detected {
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+    <script>
+        let socket;
+
+        function startDetection() {
+            fetch('/start_detection', {
+                method: 'POST'
+            })
+                .then(response => {
+                    if (response.ok) {
+                        socket = new WebSocket("ws://localhost:8000/ws");
+
+                        socket.onmessage = function (event) {
+                            const data = JSON.parse(event.data);
+                            const responseContainer = document.getElementById("response-container");
+                            const imageContainer = document.getElementById("image-container");
+
+                            responseContainer.innerHTML = JSON.stringify(data.response, null, 2);
+
+                            if (data.response.detection) {
+                                responseContainer.classList.add("fire-detected");
+                                responseContainer.classList.remove("no-fire-detected");
+                            } else {
+                                responseContainer.classList.add("no-fire-detected");
+                                responseContainer.classList.remove("fire-detected");
+                            }
+
+                            imageContainer.src = "data:image/jpeg;base64," + data.frame;
+                        };
+                    } else {
+                        console.log('Failed to start detection.');
+                    }
+                })
+                .catch(error => {
+                    console.log('Error:', error);
+                });
+        }
+
+        function stopDetection() {
+            fetch('/stop_detection', {
+                method: 'POST'
+            })
+                .then(response => {
+                    if (response.ok) {
+                        socket.close();
+                        const responseContainer = document.getElementById("response-container");
+                        const imageContainer = document.getElementById("image-container");
+
+                        responseContainer.innerHTML = "";
+                        responseContainer.classList.remove("fire-detected");
+                        responseContainer.classList.remove("no-fire-detected");
+                        imageContainer.src = "";
+                    } else {
+                        console.log('Failed to stop detection.');
+                    }
+                })
+                .catch(error => {
+                    console.log('Error:', error);
+                });
+        }
+    </script>
+</head>
+
+<body>
+    <h1>Fire Detection</h1>
+    <button onclick="startDetection()">Start Detection</button>
+    <button onclick="stopDetection()">Stop Detection</button>
+    <div id="response-container"></div>
+    <img id="image-container" src="" alt="Fire Image">
+</body>
+
+</html>
