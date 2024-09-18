@@ -6,3 +6,4 @@ Forest Fire is Increasing Intensity Globally, Satellite data indicates that fore
 2) IoT environment with wifi enabled data streaming of sensor values captured from Temperature and smoke sensor
 3) Flutter Web App with a credential-check forest officer login,that serves as an integration platform to check the presence of fire based on image processed live stream and IoT environment and a google locater
    to show the location of sensor placed.
+4)Threat alert by alarm
