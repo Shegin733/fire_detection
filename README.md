@@ -8,6 +8,12 @@
 
 This project is an end-to-end forest fire monitoring and alert system designed to detect fire conditions early using a combination of camera-based computer vision, environmental sensors, and a user-friendly monitoring dashboard.
 
+
+
+https://github.com/user-attachments/assets/025c98ab-a28c-46e0-88b0-54e0981d429d
+
+
+
 The system integrates:
 
 - a Python backend that processes live video and runs fire detection logic,
